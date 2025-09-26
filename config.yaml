@@ -1,0 +1,48 @@
+seed: 42
+symbols:
+- EURUSD
+- GBPUSD
+- USDJPY
+- USDCHF
+- AUDUSD
+- USDCAD
+- NZDUSD
+timeframes:
+  D1:
+    seq_len: 128
+    horizon: 2
+    atr_mult: 1.3
+    sl_mult: 1.2
+    tp1_mult: 1.8
+    tp2_mult: 3.0
+  H4:
+    seq_len: 96
+    horizon: 4
+    atr_mult: 1.2
+    sl_mult: 1.1
+    tp1_mult: 1.6
+    tp2_mult: 2.5
+  H2:
+    seq_len: 96
+    horizon: 5
+    atr_mult: 1.1
+    sl_mult: 1.0
+    tp1_mult: 1.5
+    tp2_mult: 2.2
+  M30:
+    seq_len: 64
+    horizon: 8
+    atr_mult: 0.9
+    sl_mult: 0.9
+    tp1_mult: 1.2
+    tp2_mult: 1.8
+  M15:
+    seq_len: 64
+    horizon: 10
+    atr_mult: 0.8
+    sl_mult: 0.8
+    tp1_mult: 1.0
+    tp2_mult: 1.6
+thresholds:
+  prob: 0.5
+years_max: 20
