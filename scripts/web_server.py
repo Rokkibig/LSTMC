@@ -160,7 +160,7 @@ def index():
           container.appendChild(card);
         }
       } else {
-        container.innerHTML = '<div class="card">Сигнали з\'являться після запуску автоматичного оновлення за розкладом.</div>';
+        container.innerHTML = '<div class="card">Сигнали з\\\'являться після запуску автоматичного оновлення за розкладом.</div>';
       }
     }
     

@@ -23,7 +23,7 @@ def atr(df: pd.DataFrame, n: int = 14):
             "lc": (low - close.shift(1)).abs(),
         }
     ).max(axis=1)
-    return true_range.rolling(n).mean()
+    return ema(true_range, n)
 
 
 def make_features(df: pd.DataFrame):

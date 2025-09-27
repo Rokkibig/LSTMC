@@ -28,14 +28,10 @@ def fetch(symbol: str, tf, tf_name: str, years: int, outdir: str):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
-    ap.add_argument("--years", type=int, default=None, help="override years (<= years_max)")
     ap.add_argument("--outdir", default="data")
     args = ap.parse_args()
 
     cfg = load_cfg(args.config)
-    years_max = cfg.get("years_max", 15)
-    years = args.years if args.years else years_max
-    years = min(years, years_max)
 
     if not mt5.initialize():
         raise SystemExit("MT5 init failed")
@@ -48,7 +44,8 @@ def main():
     }
     total = 0
     for s in cfg["symbols"]:
-        for tf_name in cfg["timeframes"].keys():
+        for tf_name, tf_cfg in cfg["timeframes"].items():
+            years = tf_cfg.get("years", 5) # Default to 5 years if not specified
             total += fetch(s, TF_MAP[tf_name], tf_name, years, args.outdir)
     mt5.shutdown()
     print(f"[DONE] Total rows saved: {total}")
