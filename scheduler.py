@@ -49,6 +49,7 @@ def main():
             "--out",
             "outputs/signals.json",
         ],
+        [sys.executable, "infer_meta_signals.py"], # Run meta-signal inference at the end
     ]
 
     try:

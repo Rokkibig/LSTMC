@@ -25,7 +25,10 @@ def process_symbol(symbol, tf_name, tf_cfg):
     df = pd.read_csv(path, parse_dates=["time"])
     df = make_features(df)
     df = make_targets(df, horizon=tf_cfg["horizon"], atr_mult=tf_cfg["atr_mult"])
-    features = ["Open","High","Low","Close","Volume","RET1","EMA20","EMA50","RSI14","ATR14","BB_mid","BB_up","BB_dn","TrendUp"]
+    
+    # Dynamically determine features from the dataframe columns, excluding the target and time
+    features = [c for c in df.columns if c not in ["time", "y"]]
+    
     X, y = to_windows(df, features, "y", tf_cfg["seq_len"])
 
     n = len(X)

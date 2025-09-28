@@ -81,38 +81,77 @@ def api_signals():
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
+@app.get("/api/meta-signal")
+def api_meta_signal():
+    """Returns the latest generated meta-signal."""
+    path = "outputs/meta_signal.json"
+    if not os.path.exists(path):
+        return {"error": "no meta-signal yet"}
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
 # --- HTML Frontend ---
 
 @app.get("/", response_class=HTMLResponse)
 def index():
     css = """
-    body { background:#111; color:#eee; font:14px/1.5 Arial, sans-serif; padding:20px; }
+    body { background:#111; color:#eee; font:16px/1.5 'Segoe UI', Arial, sans-serif; padding:20px; }
     .card { background:#1a1a1a; border:1px solid #2a2a2a; border-radius:12px; padding:16px; margin:12px 0; }
-    h1, h2 { margin-top:0; color:#f2f2f2; }
-    table { width:100%; border-collapse:collapse; }
+    h1, h2 { margin-top:0; color:#f2f2f2; font-weight: 300; }
+    h1 { font-size: 36px; }
+    h2 { font-size: 24px; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+    .refresh-btn { background: #333; border: 1px solid #555; color: #eee; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    .refresh-btn:hover { background: #444; }
+    table { width:100%; border-collapse:collapse; margin-top: 10px; }
     th, td { padding:8px; border-bottom:1px solid #2a2a2a; text-align:left; }
     th { text-transform:uppercase; font-size:12px; letter-spacing:0.08em; color:#bdbdbd; }
     .long { color:#4caf50; font-weight:bold; }
     .short { color:#f44336; font-weight:bold; }
     .watch { color:#ff9800; font-weight:bold; }
     .meta { color:#9a9a9a; font-size:12px; margin-top:6px; }
-    .info-bar { padding: 10px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; margin-bottom: 20px; }
-    .flex-container { display: flex; gap: 20px; flex-wrap: wrap; }
-    .price-section { flex-grow: 1; min-width: 300px; }
-    .signal-section { flex-grow: 2; min-width: 600px; }
+    .info-bar { padding: 10px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; margin-bottom: 20px; font-size: 14px; }
     .ideas tbody tr:nth-child(2) { background:#151515; }
     #price-table th, #price-table td { text-align: right; }
     #price-table th:first-child, #price-table td:first-child { text-align: left; }
+    #meta-signal-summary { background: linear-gradient(45deg, #2a2a2a, #1a1a1a); border: 1px solid #444; border-radius: 16px; padding: 25px; text-align: center; margin-bottom: 20px; }
+    #meta-signal-summary .recommendation { font-size: 28px; font-weight: bold; margin: 10px 0; letter-spacing: 1px; }
+    #meta-signal-summary .details { font-size: 14px; color: #bdbdbd; }
+    .main-flex-container { display: flex; gap: 20px; align-items: flex-start; }
+    .left-column { flex: 1; min-width: 300px; }
+    .right-column { flex: 2; min-width: 600px; }
     """
 
     js = """
     const fmtPct = (value) => `${(value * 100).toFixed(1)}%`;
+    const fmtPct4 = (value) => `${(value * 100).toFixed(4)}%`;
 
     function formatFilters(decision) {
       const filters = [];
       filters.push(decision.probability_pass ? 'ймовірність ✔' : 'ймовірність ✖');
       filters.push(decision.trend_pass ? 'тренд ✔' : 'тренд ✖');
       return filters.join(', ');
+    }
+
+    async function loadMetaSignal() {
+        const response = await fetch('/api/meta-signal');
+        const meta = await response.json();
+        const container = document.getElementById('meta-signal-summary');
+        let html = `<h2>Головний Сигнал<button id="refresh-meta-btn" class="refresh-btn">🔄</button></h2>`;
+        
+        if (meta.error) {
+            html += `<div class="details">Очікуємо на генерацію...</div>`;
+        } else {
+            html += `<div class="recommendation long">LONG ${meta.recommended_pair}</div>`;
+            html += `<div class="details">Найсильніша: <strong>${meta.strongest_currency}</strong> (прогноз: ${fmtPct4(meta.strongest_prediction)}) | Найслабша: <strong>${meta.weakest_currency}</strong> (прогноз: ${fmtPct4(meta.weakest_prediction)})</div>`;
+            
+            if (meta.trade_levels) {
+                html += `<table class="ideas"><thead><tr><th>Тип</th><th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th></tr></thead><tbody>`;
+                html += `<tr><td>Meta</td><td>${meta.trade_levels.entry}</td><td>${meta.trade_levels.sl}</td><td>${meta.trade_levels.tp1}</td><td>${meta.trade_levels.tp2}</td></tr>`;
+                html += `</tbody></table>`;
+            }
+            html += `<div class="meta">Згенеровано: ${new Date(meta.generated_at).toLocaleString()}</div>`;
+        }
+        container.innerHTML = html;
     }
 
     async function loadPrices() {
@@ -160,15 +199,29 @@ def index():
           container.appendChild(card);
         }
       } else {
-        container.innerHTML = '<div class="card">Сигнали з\\\'являться після запуску автоматичного оновлення за розкладом.</div>';
+        container.innerHTML = '<div class="card">Сигнали з\\'являться після запуску автоматичного оновлення за розкладом.</div>';
       }
     }
     
     window.addEventListener('load', () => {
+        loadMetaSignal();
         loadSignals();
         loadPrices();
-        setInterval(loadSignals, 60000); // Auto-refresh signals every 60 seconds
-        setInterval(loadPrices, 1000);   // Auto-refresh prices every second
+        setInterval(loadMetaSignal, 60000);
+        setInterval(loadSignals, 60000);
+        setInterval(loadPrices, 1000);
+
+        // Use event delegation on a static parent element
+        document.getElementById('meta-signal-summary').addEventListener('click', (event) => {
+            if (event.target.id === 'refresh-meta-btn') {
+                loadMetaSignal();
+            }
+        });
+        document.getElementById('signal-section-header').addEventListener('click', (event) => {
+            if (event.target.id === 'refresh-signals-btn') {
+                loadSignals();
+            }
+        });
     });
     """
 
@@ -182,14 +235,19 @@ def index():
         'Сигнали оновлюються автоматично за розкладом. Ціни оновлюються в реальному часі.'
         '<div id="generated_at"></div>'
         '</div>'
-        '<div class="flex-container">'
+        '<div class="main-flex-container">'
+        '<div class="left-column">'
+        '<div id="meta-signal-summary" class="card"></div>'
         '<div class="price-section card">'
         '<h2>Ціни в реальному часі</h2>'
         '<table id="price-table"><thead><tr><th>Символ</th><th>Bid</th><th>Ask</th><th>Час</th></tr></thead><tbody id="price-table-body"></tbody></table>'
         '</div>'
+        '</div>'
+        '<div class="right-column">'
         '<div class="signal-section">'
-        '<h2>Торгові сигнали</h2>'
+        '<h2 id="signal-section-header">Торгові сигнали<button id="refresh-signals-btn" class="refresh-btn">🔄</button></h2>'
         '<div id="signals"></div>'
+        '</div>'
         '</div>'
         '</div>'
         '<script>'

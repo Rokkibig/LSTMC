@@ -33,10 +33,22 @@ def make_features(df: pd.DataFrame):
     out["EMA50"] = ema(out["Close"], 50)
     out["RSI14"] = rsi(out["Close"], 14)
     out["ATR14"] = atr(out, 14)
+    
+    # Bollinger Bands
     out["BB_mid"] = out["Close"].rolling(20).mean()
     out["BB_std"] = out["Close"].rolling(20).std()
     out["BB_up"] = out["BB_mid"] + 2 * out["BB_std"]
     out["BB_dn"] = out["BB_mid"] - 2 * out["BB_std"]
+    out["BB_width"] = (out["BB_up"] - out["BB_dn"]) / out["BB_mid"]
+    out["BB_pct"] = (out["Close"] - out["BB_dn"]) / (out["BB_up"] - out["BB_dn"])
+
+    # MACD
+    ema12 = ema(out["Close"], 12)
+    ema26 = ema(out["Close"], 26)
+    out["MACD"] = ema12 - ema26
+    out["MACD_signal"] = ema(out["MACD"], 9)
+    out["MACD_hist"] = out["MACD"] - out["MACD_signal"]
+
     out["TrendUp"] = (out["EMA20"] > out["EMA50"]).astype(int)
     return out.dropna().reset_index(drop=True)
 

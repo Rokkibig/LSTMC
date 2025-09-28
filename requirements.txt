@@ -6,4 +6,4 @@ tensorflow
 python-dotenv
 PyYAML
 fastapi
-uvicorn[standard]
+uvicorn[standard]tqdm
