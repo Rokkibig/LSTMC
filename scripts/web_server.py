@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse
-from dotenv import load_dotenv
 import json
 import os
 import asyncio
@@ -100,8 +99,6 @@ def index():
     h1, h2 { margin-top:0; color:#f2f2f2; font-weight: 300; }
     h1 { font-size: 36px; }
     h2 { font-size: 24px; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
-    .refresh-btn { background: #333; border: 1px solid #555; color: #eee; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; }
-    .refresh-btn:hover { background: #444; }
     table { width:100%; border-collapse:collapse; margin-top: 10px; }
     th, td { padding:8px; border-bottom:1px solid #2a2a2a; text-align:left; }
     th { text-transform:uppercase; font-size:12px; letter-spacing:0.08em; color:#bdbdbd; }
@@ -110,7 +107,6 @@ def index():
     .watch { color:#ff9800; font-weight:bold; }
     .meta { color:#9a9a9a; font-size:12px; margin-top:6px; }
     .info-bar { padding: 10px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; margin-bottom: 20px; font-size: 14px; }
-    .ideas tbody tr:nth-child(2) { background:#151515; }
     #price-table th, #price-table td { text-align: right; }
     #price-table th:first-child, #price-table td:first-child { text-align: left; }
     #meta-signal-summary { background: linear-gradient(45deg, #2a2a2a, #1a1a1a); border: 1px solid #444; border-radius: 16px; padding: 25px; text-align: center; margin-bottom: 20px; }
@@ -136,10 +132,10 @@ def index():
         const response = await fetch('/api/meta-signal');
         const meta = await response.json();
         const container = document.getElementById('meta-signal-summary');
-        let html = `<h2>Головний Сигнал<button id="refresh-meta-btn" class="refresh-btn">🔄</button></h2>`;
+        let html = `<h2>Головний Сигнал</h2>`;
         
         if (meta.error) {
-            html += `<div class="details">Очікуємо на генерацію...</div>`;
+            html += `<div class="details">${meta.error}</div>`;
         } else {
             html += `<div class="recommendation long">LONG ${meta.recommended_pair}</div>`;
             html += `<div class="details">Найсильніша: <strong>${meta.strongest_currency}</strong> (прогноз: ${fmtPct4(meta.strongest_prediction)}) | Найслабша: <strong>${meta.weakest_currency}</strong> (прогноз: ${fmtPct4(meta.weakest_prediction)})</div>`;
@@ -152,18 +148,6 @@ def index():
             html += `<div class="meta">Згенеровано: ${new Date(meta.generated_at).toLocaleString()}</div>`;
         }
         container.innerHTML = html;
-    }
-
-    async function loadPrices() {
-        const response = await fetch('/api/prices');
-        const prices = await response.json();
-        const tableBody = document.getElementById('price-table-body');
-        tableBody.innerHTML = '';
-        for (const symbol in prices) {
-            const price = prices[symbol];
-            const row = `<tr><td>${symbol}</td><td>${price.bid}</td><td>${price.ask}</td><td>${new Date(price.time).toLocaleTimeString()}</td></tr>`;
-            tableBody.innerHTML += row;
-        }
     }
 
     async function loadSignals() {
@@ -202,6 +186,18 @@ def index():
         container.innerHTML = '<div class="card">Сигнали з\\'являться після запуску автоматичного оновлення за розкладом.</div>';
       }
     }
+
+    async function loadPrices() {
+        const response = await fetch('/api/prices');
+        const prices = await response.json();
+        const tableBody = document.getElementById('price-table-body');
+        tableBody.innerHTML = '';
+        for (const symbol in prices) {
+            const price = prices[symbol];
+            const row = `<tr><td>${symbol}</td><td>${price.bid}</td><td>${price.ask}</td><td>${new Date(price.time).toLocaleTimeString()}</td></tr>`;
+            tableBody.innerHTML += row;
+        }
+    }
     
     window.addEventListener('load', () => {
         loadMetaSignal();
@@ -210,18 +206,6 @@ def index():
         setInterval(loadMetaSignal, 60000);
         setInterval(loadSignals, 60000);
         setInterval(loadPrices, 1000);
-
-        // Use event delegation on a static parent element
-        document.getElementById('meta-signal-summary').addEventListener('click', (event) => {
-            if (event.target.id === 'refresh-meta-btn') {
-                loadMetaSignal();
-            }
-        });
-        document.getElementById('signal-section-header').addEventListener('click', (event) => {
-            if (event.target.id === 'refresh-signals-btn') {
-                loadSignals();
-            }
-        });
     });
     """
 
@@ -232,12 +216,12 @@ def index():
         '<body>'
         '<h1>Forex LSTM Dashboard</h1>'
         '<div class="info-bar">'
-        'Сигнали оновлюються автоматично за розкладом. Ціни оновлюються в реальному часі.'
+        'Панель оновлюється автоматично. Результати відображають останній запуск основного конвеєра.'
         '<div id="generated_at"></div>'
         '</div>'
         '<div class="main-flex-container">'
         '<div class="left-column">'
-        '<div id="meta-signal-summary" class="card"></div>'
+        '<div id="meta-signal-summary" class="card">Завантаження...</div>'
         '<div class="price-section card">'
         '<h2>Ціни в реальному часі</h2>'
         '<table id="price-table"><thead><tr><th>Символ</th><th>Bid</th><th>Ask</th><th>Час</th></tr></thead><tbody id="price-table-body"></tbody></table>'
@@ -245,7 +229,7 @@ def index():
         '</div>'
         '<div class="right-column">'
         '<div class="signal-section">'
-        '<h2 id="signal-section-header">Торгові сигнали<button id="refresh-signals-btn" class="refresh-btn">🔄</button></h2>'
+        '<h2>Торгові сигнали</h2>'
         '<div id="signals"></div>'
         '</div>'
         '</div>'

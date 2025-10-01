@@ -39,6 +39,7 @@ def main():
         "D1": mt5.TIMEFRAME_D1,
         "H4": mt5.TIMEFRAME_H4,
         "H2": mt5.TIMEFRAME_H2,
+        "H1": mt5.TIMEFRAME_H1,
         "M30": mt5.TIMEFRAME_M30,
         "M15": mt5.TIMEFRAME_M15,
     }

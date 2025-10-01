@@ -4,11 +4,8 @@ import os
 import pandas as pd
 import joblib
 import numpy as np
-import tensorflow as tf
 import yaml
 from datetime import datetime
-
-from scripts.utils import make_features
 
 # --- Helper Functions ---
 
@@ -17,11 +14,8 @@ def load_cfg(path):
         return yaml.safe_load(f)
 
 def get_trade_levels(entry_price: float, atr: float, side: str, symbol: str) -> dict:
-    """Calculates SL and TP levels based on a given price and ATR."""
     sl_distance = 1.5 * atr
-    # Determine rounding based on the recommended pair, not the source pair
     rounder = 3 if "JPY" in symbol else 5
-
     if side == "LONG":
         sl = entry_price - sl_distance
         tp1 = entry_price + sl_distance
@@ -30,7 +24,6 @@ def get_trade_levels(entry_price: float, atr: float, side: str, symbol: str) -> 
         sl = entry_price + sl_distance
         tp1 = entry_price - sl_distance
         tp2 = entry_price - 2 * sl_distance
-
     return {
         "entry": round(entry_price, rounder),
         "sl": round(sl, rounder),
@@ -38,69 +31,38 @@ def get_trade_levels(entry_price: float, atr: float, side: str, symbol: str) -> 
         "tp2": round(tp2, rounder),
     }
 
-def infer_one(symbol, tf_name, prob_th, params):
-    """Generates primary signal data, including price and ATR for later use."""
-    path = f"data/{symbol}_{tf_name}.csv"
-    meta_path = f"data/{symbol}_{tf_name}_meta.json"
-    model_path = f"models/{symbol}_{tf_name}_lstm.h5"
-    if not (os.path.exists(path) and os.path.exists(meta_path) and os.path.exists(model_path)):
-        return None
-
-    df = pd.read_csv(path, parse_dates=["time"])
-    feat = make_features(df)
-    with open(meta_path, "r", encoding="utf-8") as f:
-        meta = json.load(f)
-    cols = meta["features"]
-    seq_len = meta["seq_len"]
-    if len(feat) < seq_len + 1:
-        return None
-
-    X = feat[cols].values[-seq_len:].astype(np.float32)[None, ...]
-    model = tf.keras.models.load_model(model_path)
-    proba = model.predict(X, verbose=0)[0]
-    p_short, p_no, p_long = float(proba[0]), float(proba[1]), float(proba[2])
-
-    last = feat.iloc[-1]
-    price = float(last["Close"])
-    atr_value = float(last["ATR14"])
-    trend_up = int(last["TrendUp"]) == 1
-
-    return {
-        "symbol": symbol, "tf": tf_name, "trend_up": trend_up,
-        "price": price, "atr": atr_value,
-        "probabilities": {"short": p_short, "no": p_no, "long": p_long}
-    }
-
 def flatten_signals(signals: list) -> dict:
     """Flattens the list of signal objects into a single feature dictionary."""
     flat_row = {}
     for signal_item in signals:
         prefix = f"{signal_item['symbol']}_{signal_item['tf']}"
-        flat_row[f"{prefix}_p_short"] = signal_item['probabilities']['short']
-        flat_row[f"{prefix}_p_no"] = signal_item['probabilities']['no']
-        flat_row[f"{prefix}_p_long"] = signal_item['probabilities']['long']
-        flat_row[f"{prefix}_trend_up"] = 1 if signal_item['trend_up'] else 0
+        signal_data = signal_item['signal']
+        flat_row[f"{prefix}_p_short"] = signal_data['probabilities']['short']
+        flat_row[f"{prefix}_p_no"] = signal_data['probabilities']['no']
+        flat_row[f"{prefix}_p_long"] = signal_data['probabilities']['long']
+        flat_row[f"{prefix}_trend_up"] = 1 if signal_data['trend_up'] else 0
     return flat_row
 
 def main():
     parser = argparse.ArgumentParser(description="Generate a final meta-signal from all models.")
     parser.add_argument("--config", default="config.yaml", help="Path to config.yaml")
+    parser.add_argument("--signals-file", default="outputs/signals.json", help="Path to the generated signals file.")
     parser.add_argument("--models-dir", default="models", help="Directory with all trained models.")
     args = parser.parse_args()
 
     cfg = load_cfg(args.config)
-    prob_th = cfg["thresholds"]["prob"]
 
-    print("Generating primary signals from LSTM models...")
-    primary_signals = []
-    for symbol in cfg["symbols"]:
-        for tf_name, tf_cfg in cfg["timeframes"].items():
-            result = infer_one(symbol, tf_name, prob_th, tf_cfg)
-            if result:
-                primary_signals.append(result)
+    print(f"Loading primary signals from {args.signals_file}...")
+    try:
+        with open(args.signals_file, 'r', encoding='utf-8') as f:
+            primary_signals_data = json.load(f)
+            primary_signals = primary_signals_data['signals']
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Could not load or parse primary signals file: {e}. Exiting.")
+        return
     
     if not primary_signals:
-        print("Could not generate any primary signals. Exiting.")
+        print("No primary signals found in the input file. Exiting.")
         return
 
     features = flatten_signals(primary_signals)
@@ -118,12 +80,14 @@ def main():
         print("No meta-models found. Did you run train_meta_model.py?")
         return
 
-    any_model = next(iter(meta_models.values()))
     try:
-        feature_order = any_model.feature_name_
+        any_model = next(iter(meta_models.values()))
+        feature_order = any_model.feature_names_in_
         features_df = features_df[feature_order]
-    except AttributeError:
-        print("Warning: Could not get feature order from model. Assuming order is correct.")
+    except Exception as e:
+        print(f"[ERROR] Feature mismatch for meta-model: {e}")
+        print("This likely means the meta-models are stale. Please run the full retraining pipeline.")
+        return
 
     print("Predicting currency strength with meta-models...")
     predictions = {}
@@ -147,12 +111,7 @@ def main():
     relevant_signal = next((s for s in primary_signals if s['symbol'] == base_symbol_for_levels and s['tf'] == 'H4'), None)
     
     if relevant_signal:
-        print(f"Calculating trade levels based on {relevant_signal['symbol']} H4 data...")
-        # Note: This is an approximation. For a true cross-pair like AUDEUR, the entry price
-        # would be AUDUSD/EURUSD, and ATR would be more complex. Here we use the base pair's data.
         trade_levels = get_trade_levels(relevant_signal['price'], relevant_signal['atr'], side="LONG", symbol=recommended_pair)
-    else:
-        print(f"Warning: Could not find H4 data for {base_symbol_for_levels} to calculate trade levels.")
 
     output = {
         "generated_at": datetime.now().isoformat(),
@@ -169,21 +128,5 @@ def main():
         json.dump(output, f, ensure_ascii=False, indent=2)
     print(f"[OK] Meta signal saved to {out_path}")
 
-    print("\n----------------------------------------")
-    print("--- Meta-Signal Summary ---")
-    print("----------------------------------------")
-    print(f"Найсильніша валюта: {strongest[0]} (Прогноз: {strongest[1]:+.4f}%)")
-    print(f"Найслабша валюта:  {weakest[0]} (Прогноз: {weakest[1]:+.4f}%)")
-    print("----------------------------------------")
-    print(f"РЕКОМЕНДАЦІЯ: Розглянути LONG по {output['recommended_pair']}")
-    if trade_levels:
-        print("  Вхід:  ", trade_levels['entry'])
-        print("  SL:    ", trade_levels['sl'])
-        print("  TP1:   ", trade_levels['tp1'])
-        print("  TP2:   ", trade_levels['tp2'])
-    print("----------------------------------------\n")
-
 if __name__ == "__main__":
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
-    tf.get_logger().setLevel('ERROR')
     main()

@@ -31,7 +31,7 @@ For detailed instructions on how to set up the environment and configure the aut
     ```bash
     codex run web
     ```
-4.  Open http://127.0.0.1:8000 to view the dashboard.
+4.  Open http://127.0.0.1:8001 to view the dashboard.
 
 ## Available API Endpoints
 

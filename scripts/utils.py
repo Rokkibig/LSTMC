@@ -1,4 +1,4 @@
-﻿import numpy as np
+import numpy as np
 import pandas as pd
 
 
@@ -68,3 +68,26 @@ def make_targets(df: pd.DataFrame, horizon: int, atr_mult: float):
     y[mask_down] = -1
     f["y"] = y
     return f.dropna().reset_index(drop=True)
+
+def build_trade(side: str, price: float, atr_value: float, params: dict, rounder: int, confidence: float):
+    sl_mult = params["sl_mult"]
+    tp1_mult = params["tp1_mult"]
+    tp2_mult = params["tp2_mult"]
+    if side == "LONG":
+        entry = price
+        sl = entry - sl_mult * atr_value
+        tp1 = entry + tp1_mult * atr_value
+        tp2 = entry + tp2_mult * atr_value
+    else:
+        entry = price
+        sl = entry + sl_mult * atr_value
+        tp1 = entry - tp1_mult * atr_value
+        tp2 = entry - tp2_mult * atr_value
+    return {
+        "side": side,
+        "entry": round(entry, rounder),
+        "sl": round(sl, rounder),
+        "tp1": round(tp1, rounder),
+        "tp2": round(tp2, rounder),
+        "confidence": confidence,
+    }

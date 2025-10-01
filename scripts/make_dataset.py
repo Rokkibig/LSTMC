@@ -1,5 +1,5 @@
 import argparse, json, os, numpy as np, pandas as pd, yaml
-from utils import make_features, make_targets
+from scripts.utils import make_features, make_targets
 
 
 def load_cfg(path):

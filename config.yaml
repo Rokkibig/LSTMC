@@ -32,6 +32,14 @@ timeframes:
     sl_mult: 1.0
     tp1_mult: 1.5
     tp2_mult: 2.2
+  H1:
+    years: 10
+    seq_len: 96
+    horizon: 6
+    atr_mult: 1.0
+    sl_mult: 1.0
+    tp1_mult: 1.4
+    tp2_mult: 2.0
   M30:
     years: 5
     seq_len: 64
