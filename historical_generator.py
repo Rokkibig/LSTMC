@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import sys
 from datetime import datetime, timedelta
 
 import numpy as np
@@ -10,7 +11,8 @@ import tensorflow as tf
 import yaml
 from tqdm import tqdm
 
-# Assuming utils.py is in the scripts directory
+# Add current directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from scripts.utils import make_features
 
 # --- Helper Functions (adapted from infer_signals.py) ---

@@ -81,8 +81,17 @@ def main():
         return
 
     try:
-        any_model = next(iter(meta_models.values()))
-        feature_order = any_model.feature_names_in_
+        # Get feature order from first model
+        first_model = next(iter(meta_models.values()))
+
+        # Check if it's an ensemble or single model
+        if isinstance(first_model, dict) and 'lgb_model' in first_model:
+            # Ensemble model
+            feature_order = first_model['lgb_model'].feature_names_in_
+        else:
+            # Single model
+            feature_order = first_model.feature_names_in_
+
         features_df = features_df[feature_order]
     except Exception as e:
         print(f"[ERROR] Feature mismatch for meta-model: {e}")
@@ -92,7 +101,14 @@ def main():
     print("Predicting currency strength with meta-models...")
     predictions = {}
     for currency, model in meta_models.items():
-        prediction = model.predict(features_df)[0]
+        # Check if ensemble
+        if isinstance(model, dict) and 'lgb_model' in model:
+            lgb_pred = model['lgb_model'].predict(features_df)[0]
+            xgb_pred = model['xgb_model'].predict(features_df)[0]
+            prediction = model['lgb_weight'] * lgb_pred + model['xgb_weight'] * xgb_pred
+        else:
+            prediction = model.predict(features_df)[0]
+
         predictions[currency] = prediction
 
     if not predictions:

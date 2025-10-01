@@ -10,14 +10,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `pip install -r requirements.txt` - Install dependencies
 
 ### Pipeline Execution
-- `python run_pipeline.py` - Run the complete pipeline including meta-learning (preferred method)
+
+**Покращений pipeline (рекомендовано):**
+- `python run_improved_pipeline.py` - Повний покращений pipeline з усіма features
+- `python run_improved_pipeline.py --fast-mode` - Швидкий режим для тестування (GRU, без augmentation)
+- `python run_improved_pipeline.py --model-type ensemble --meta-ensemble` - Ensemble всіх моделей
+- `quick_test.bat` - Швидкий тест покращень (Windows)
+- `full_improved_pipeline.bat` - Повний покращений pipeline (Windows)
+
+**Базовий pipeline:**
+- `python run_pipeline.py` - Run the complete pipeline including meta-learning
 - `python run_pipeline.py --timeframes H1,M15` - Run pipeline for specific timeframes only
 - `python run_pipeline.py --skip-history` - Skip historical generation (faster for testing)
 - `codex run pipeline` - Run basic pipeline via scheduler (without meta-learning)
-- `codex run web` - Start the FastAPI web dashboard on http://127.0.0.1:8000
 - `python scheduler.py` - Run basic pipeline manually (equivalent to `codex run pipeline`)
 
+**Dashboard:**
+- `codex run web` - Start the FastAPI web dashboard on http://127.0.0.1:8000
+
 ### Individual Pipeline Steps
+
+**Покращені команди:**
+- `python scripts/make_dataset.py --config config.yaml --walk-forward` - Dataset з walk-forward validation
+- `python scripts/train_lstm.py --config config.yaml --ensemble` - Train всі три типи моделей (LSTM/GRU/Attention)
+- `python scripts/train_lstm.py --config config.yaml --model-type gru` - Train лише GRU (швидший)
+- `python scripts/train_lstm.py --config config.yaml --model-type attention` - Train з attention mechanism
+- `python train_meta_model.py --ensemble --cv-folds 5` - Meta-ensemble з cross-validation
+- `python evaluate_backtest.py --history-dir outputs/history` - Оцінка фінансових метрик
+
+**Базові команди:**
 - `python scripts/fetch_mt5.py --config config.yaml --years 20` - Fetch MT5 data
 - `python scripts/make_dataset.py --config config.yaml` - Create training datasets
 - `python scripts/train_lstm.py --config config.yaml` - Train LSTM models

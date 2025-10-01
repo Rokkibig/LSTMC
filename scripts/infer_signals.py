@@ -1,6 +1,7 @@
 ﻿import argparse
 import json
 import os
+import sys
 from datetime import datetime
 
 import numpy as np
@@ -8,6 +9,8 @@ import pandas as pd
 import tensorflow as tf
 import yaml
 
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from scripts.utils import make_features, build_trade
 
 
@@ -93,7 +96,7 @@ def infer_one(symbol, tf_name, prob_th, params):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
-    ap.add_argument("--out", required=True)
+    ap.add_argument("--out", default="outputs/signals.json", help="Output file path (default: outputs/signals.json)")
     args = ap.parse_args()
 
     cfg = load_cfg(args.config)

@@ -49,12 +49,12 @@ timeframes:
     tp1_mult: 1.2
     tp2_mult: 1.8
   M15:
-    years: 2
-    seq_len: 64
-    horizon: 10
-    atr_mult: 0.8
-    sl_mult: 0.8
-    tp1_mult: 1.0
-    tp2_mult: 1.6
+    years: 5              # 5 років історії для M15
+    seq_len: 96           # Більше свічок = 24 години (1 день контексту)
+    horizon: 12           # 12 свічок = 3 години (реалістичніший таргет)
+    atr_mult: 0.9         # Трохи більше для фільтрації шуму
+    sl_mult: 0.9          # Трохи більше простору
+    tp1_mult: 1.2         # Реалістичні цілі
+    tp2_mult: 1.8
 thresholds:
   prob: 0.5

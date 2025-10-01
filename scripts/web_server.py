@@ -194,7 +194,7 @@ def index():
         tableBody.innerHTML = '';
         for (const symbol in prices) {
             const price = prices[symbol];
-            const row = `<tr><td>${symbol}</td><td>${price.bid}</td><td>${price.ask}</td><td>${new Date(price.time).toLocaleTimeString()}</td></tr>`;
+            const row = `<tr><td>${symbol}</td><td>${price.bid.toFixed(4)}</td><td>${price.ask.toFixed(4)}</td><td>${new Date(price.time).toLocaleTimeString()}</td></tr>`;
             tableBody.innerHTML += row;
         }
     }
