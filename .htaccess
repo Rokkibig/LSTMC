@@ -1,0 +1,13 @@
+RewriteEngine On
+
+# Proxy всі запити на /api/* до localhost:8001
+RewriteCond %{REQUEST_URI} ^/api/
+RewriteRule ^api/(.*)$ http://127.0.0.1:8001/api/$1 [P,L]
+
+# Головна сторінка також на API
+RewriteCond %{REQUEST_URI} ^/$
+RewriteRule ^$ http://127.0.0.1:8001/ [P,L]
+
+# Health check
+RewriteCond %{REQUEST_URI} ^/health$
+RewriteRule ^health$ http://127.0.0.1:8001/api/health [P,L]
