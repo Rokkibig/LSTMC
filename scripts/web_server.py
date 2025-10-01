@@ -89,6 +89,45 @@ def api_meta_signal():
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
+@app.get("/api/history/{symbol}/{timeframe}")
+def api_history(symbol: str, timeframe: str, years: int = 5):
+    """Returns historical data for training (for Linux server)"""
+    from datetime import timedelta
+    import pandas as pd
+
+    if not mt5.initialize():
+        return {"error": "MT5 not initialized"}
+
+    TF_MAP = {
+        "D1": mt5.TIMEFRAME_D1,
+        "H4": mt5.TIMEFRAME_H4,
+        "H2": mt5.TIMEFRAME_H2,
+        "H1": mt5.TIMEFRAME_H1,
+        "M30": mt5.TIMEFRAME_M30,
+        "M15": mt5.TIMEFRAME_M15,
+    }
+
+    if timeframe not in TF_MAP:
+        return {"error": f"Invalid timeframe: {timeframe}"}
+
+    to = datetime.now()
+    frm = to - timedelta(days=365*years + 30)
+    rates = mt5.copy_rates_range(symbol, TF_MAP[timeframe], frm, to)
+
+    if rates is None or len(rates) == 0:
+        return {"error": "No data", "symbol": symbol, "timeframe": timeframe}
+
+    df = pd.DataFrame(rates)
+    df["time"] = pd.to_datetime(df["time"], unit="s")
+
+    return {
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "years": years,
+        "bars_count": len(df),
+        "data": df.to_dict(orient="records")
+    }
+
 # --- HTML Frontend ---
 
 @app.get("/", response_class=HTMLResponse)
