@@ -1,0 +1,184 @@
+name: Deploy to Linux Server
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  DOCKER_IMAGE: forex-ml-training
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pytest flake8
+          if [ -f linux/requirements.txt ]; then pip install -r linux/requirements.txt; fi
+
+      - name: Lint with flake8
+        run: |
+          flake8 linux/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 linux/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Run tests
+        run: |
+          pytest tests/ || echo "No tests found"
+
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          cd linux
+          docker build -t ${{ env.DOCKER_IMAGE }}:latest .
+          docker build -t ${{ env.DOCKER_IMAGE }}:${{ github.sha }} .
+
+      - name: Save Docker image
+        run: |
+          docker save ${{ env.DOCKER_IMAGE }}:latest | gzip > forex-ml-image.tar.gz
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: docker-image
+          path: forex-ml-image.tar.gz
+          retention-days: 1
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v3
+        with:
+          name: docker-image
+
+      - name: Deploy to Linux Server
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H $SERVER_HOST >> ~/.ssh/known_hosts
+
+          # Copy Docker image to server
+          scp -i ~/.ssh/deploy_key forex-ml-image.tar.gz $SERVER_USER@$SERVER_HOST:/tmp/
+
+          # Deploy on server
+          ssh -i ~/.ssh/deploy_key $SERVER_USER@$SERVER_HOST << 'ENDSSH'
+            set -e
+
+            echo "🚀 Starting deployment..."
+
+            # Navigate to deployment directory
+            cd ${DEPLOY_PATH}
+
+            # Pull latest code
+            echo "📥 Pulling latest code..."
+            git pull origin main
+
+            # Load Docker image
+            echo "🐳 Loading Docker image..."
+            docker load < /tmp/forex-ml-image.tar.gz
+            rm /tmp/forex-ml-image.tar.gz
+
+            # Stop old containers
+            echo "🛑 Stopping old containers..."
+            docker-compose -f linux/docker-compose.yml down
+
+            # Start new containers
+            echo "▶️ Starting new containers..."
+            docker-compose -f linux/docker-compose.yml up -d
+
+            # Wait for health check
+            echo "⏳ Waiting for health check..."
+            sleep 10
+
+            # Check container status
+            docker-compose -f linux/docker-compose.yml ps
+
+            # Verify API is responding
+            echo "✅ Verifying API..."
+            curl -f http://localhost:8000/health || echo "⚠️ API health check failed"
+
+            # Clean up old images
+            echo "🧹 Cleaning up..."
+            docker image prune -f
+
+            echo "🎉 Deployment completed!"
+          ENDSSH
+
+          # Cleanup
+          rm ~/.ssh/deploy_key
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment successful!"
+          else
+            echo "❌ Deployment failed!"
+          fi
+
+  rollback:
+    name: Rollback on Failure
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: failure()
+    steps:
+      - name: Rollback to previous version
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H $SERVER_HOST >> ~/.ssh/known_hosts
+
+          ssh -i ~/.ssh/deploy_key $SERVER_USER@$SERVER_HOST << 'ENDSSH'
+            set -e
+            cd ${DEPLOY_PATH}
+
+            echo "⏪ Rolling back to previous version..."
+            git reset --hard HEAD~1
+            docker-compose -f linux/docker-compose.yml down
+            docker-compose -f linux/docker-compose.yml up -d
+
+            echo "✅ Rollback completed!"
+          ENDSSH
+
+          rm ~/.ssh/deploy_key

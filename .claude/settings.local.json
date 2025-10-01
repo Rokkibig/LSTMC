@@ -6,7 +6,9 @@
       "Bash(netstat:*)",
       "Bash(powershell:*)",
       "Bash(test:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: Major system improvements and multi-server architecture\n\n🎯 Architecture:\n- Added multi-server architecture documentation (ARCHITECTURE.md)\n- Windows server for MT5 data provision\n- Linux server for ML training (1.5-2x faster)\n\n✨ ML Improvements:\n- Expanded to 45+ technical indicators (RSI, MACD, ADX, Stochastic, etc.)\n- Added 3 model architectures: LSTM, GRU, Attention\n- Implemented Focal Loss for class imbalance\n- Data augmentation (jittering, magnitude warping)\n- Walk-forward validation with gap period\n- LightGBM + XGBoost ensemble\n- Time-series cross-validation (5 folds)\n\n🤖 Automation:\n- Automated retraining scripts (daily, weekly, M15)\n- Full improved pipeline runner\n- Background daemon for auto-retrain\n- Financial metrics evaluation (Sharpe, Sortino, Max Drawdown)\n\n📊 Production API:\n- Fixed .toFixed(4) for price display\n- Real-time price updates\n- 10+ REST endpoints\n- Web dashboard improvements\n\n📚 Documentation:\n- SCHEDULE.md - Retraining schedule guide\n- IMPROVEMENTS.md - Technical improvements\n- QUICKSTART.md - Quick start guide\n- EXAMPLES.md - Usage examples\n- INDEX.md - Navigation hub\n\n🔧 Configuration:\n- Optimized M15 timeframe (5 years, seq_len: 96, horizon: 12)\n- Updated all training parameters\n- Enhanced config.yaml\n\n🚀 Generated with Claude Code\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
