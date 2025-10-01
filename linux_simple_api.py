@@ -13,18 +13,40 @@ WINDOWS_API = os.getenv("WINDOWS_API", "http://84.247.166.52:8000")
 
 @app.get("/api/signals")
 def get_signals():
+    """Proxy signals from Windows server OR read local file as fallback"""
+    try:
+        # Try Windows API first
+        response = requests.get(f"{WINDOWS_API}/api/signals", timeout=5)
+        if response.status_code == 200:
+            return response.json()
+    except Exception as e:
+        print(f"Windows API unavailable: {e}")
+
+    # Fallback to local file
     if os.path.exists(SIGNALS_FILE):
         with open(SIGNALS_FILE) as f:
             data = json.load(f)
         return data
+
     return {"error": "no signals yet", "signals": []}
 
 @app.get("/api/meta-signal")
 def get_meta_signal():
+    """Proxy meta-signal from Windows server OR read local file as fallback"""
+    try:
+        # Try Windows API first
+        response = requests.get(f"{WINDOWS_API}/api/meta-signal", timeout=5)
+        if response.status_code == 200:
+            return response.json()
+    except Exception as e:
+        print(f"Windows API unavailable: {e}")
+
+    # Fallback to local file
     if os.path.exists(META_SIGNAL_FILE):
         with open(META_SIGNAL_FILE) as f:
             data = json.load(f)
         return data
+
     return {"error": "no meta-signal yet"}
 
 @app.get("/api/prices")
