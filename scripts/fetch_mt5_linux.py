@@ -13,8 +13,25 @@ def load_cfg(path):
 def fetch(symbol: str, tf_name: str, years: int, outdir: str, api_url: str):
     """Fetch data from Windows MT5 API"""
     try:
-        url = f"{api_url}/api/history/{symbol}/{tf_name}?years={years}"
-        response = requests.get(url, timeout=120)
+        # Calculate approximate count from years
+        # Rough estimates: D1=365, H4=2190, H1=8760, M30=17520, M15=35040 bars per year
+        timeframe_bars_per_year = {
+            "D1": 365,
+            "H4": 2190,
+            "H2": 4380,
+            "H1": 8760,
+            "M30": 17520,
+            "M15": 35040
+        }
+        count = timeframe_bars_per_year.get(tf_name, 8760) * years
+
+        url = f"{api_url}/api/history"
+        params = {
+            "symbol": symbol,
+            "timeframe": tf_name,
+            "count": count
+        }
+        response = requests.get(url, params=params, timeout=120)
 
         if response.status_code != 200:
             print(f"[WARN] API error for {symbol} {tf_name}: {response.status_code}")
@@ -22,8 +39,8 @@ def fetch(symbol: str, tf_name: str, years: int, outdir: str, api_url: str):
 
         data = response.json()
 
-        if "error" in data:
-            print(f"[WARN] {data['error']} for {symbol} {tf_name}")
+        if data.get("status") != "ok":
+            print(f"[WARN] API error for {symbol} {tf_name}: {data.get('error', 'Unknown error')}")
             return 0
 
         # Convert to DataFrame
@@ -31,13 +48,16 @@ def fetch(symbol: str, tf_name: str, years: int, outdir: str, api_url: str):
         df["time"] = pd.to_datetime(df["time"])
 
         # Rename columns to match expected format
-        df = df.rename(columns={
+        # API may return different column names, handle both cases
+        rename_map = {
             "open": "Open",
             "high": "High",
             "low": "Low",
             "close": "Close",
-            "tick_volume": "Volume"
-        })
+            "tick_volume": "Volume",
+            "volume": "Volume"
+        }
+        df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
 
         # Select only needed columns
         df = df[["time", "Open", "High", "Low", "Close", "Volume"]]
