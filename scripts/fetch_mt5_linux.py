@@ -58,7 +58,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
     ap.add_argument("--outdir", default="data")
-    ap.add_argument("--api-url", default="http://84.247.166.52:8000",
+    ap.add_argument("--api-url", default="http://84.247.166.52:5000",
                     help="Windows MT5 API URL")
     args = ap.parse_args()
 

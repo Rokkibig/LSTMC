@@ -9,7 +9,7 @@ app = FastAPI(title="LSTM Forex Signals API")
 
 SIGNALS_FILE = "/home/aiagent1/LSTMC/outputs/signals.json"
 META_SIGNAL_FILE = "/home/aiagent1/LSTMC/outputs/meta_signal.json"
-WINDOWS_API = os.getenv("WINDOWS_API", "http://84.247.166.52:8000")
+WINDOWS_API = os.getenv("WINDOWS_API", "http://84.247.166.52:5000")
 
 @app.get("/api/signals")
 def get_signals():
